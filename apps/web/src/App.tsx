@@ -12,6 +12,7 @@ import SignupWorker     from './pages/auth/SignupWorker'
 import CustomerHome     from './pages/customer/Home'
 import CustomerBrowse   from './pages/customer/Browse'
 import CustomerJobs     from './pages/customer/Jobs'
+import PostJob          from './pages/customer/PostJob'
 import CustomerChat     from './pages/customer/Chat'
 import CustomerProfile  from './pages/customer/Profile'
 
@@ -79,7 +80,8 @@ function AppRoutes() {
         {/* Customer */}
         <Route path="/home"   element={<ProtectedRoute allowedRoles={['customer']}><CustomerHome /></ProtectedRoute>} />
         <Route path="/browse" element={<ProtectedRoute allowedRoles={['customer']}><CustomerBrowse /></ProtectedRoute>} />
-        <Route path="/jobs"   element={<ProtectedRoute allowedRoles={['customer']}><CustomerJobs /></ProtectedRoute>} />
+        <Route path="/jobs"     element={<ProtectedRoute allowedRoles={['customer']}><CustomerJobs /></ProtectedRoute>} />
+        <Route path="/jobs/new" element={<ProtectedRoute allowedRoles={['customer']}><PostJob /></ProtectedRoute>} />
         <Route path="/chat"   element={<ProtectedRoute allowedRoles={['customer']}><CustomerChat /></ProtectedRoute>} />
         <Route path="/me"     element={<ProtectedRoute allowedRoles={['customer']}><CustomerProfile /></ProtectedRoute>} />
 

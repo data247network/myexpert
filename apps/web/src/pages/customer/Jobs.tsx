@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@myexpert/shared'
 import type { Job } from '@myexpert/shared'
 import { Briefcase, ChevronRight, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   open:        { label: 'Open',        color: 'bg-blue-50 text-blue-700'      },
@@ -80,9 +81,10 @@ export default function CustomerJobs() {
     <div className="page-with-nav">
       <div className="px-4 pt-6 pb-4 flex items-center justify-between">
         <h1 className="text-xl font-bold text-ink">My Jobs</h1>
-        <button className="px-3 py-1.5 bg-brand-600 text-white text-sm font-semibold rounded-xl">
+        <Link to="/jobs/new"
+          className="px-3 py-1.5 bg-brand-600 text-white text-sm font-semibold rounded-xl">
           + Post job
-        </button>
+        </Link>
       </div>
 
       {loading ? (
@@ -98,7 +100,7 @@ export default function CustomerJobs() {
           <p className="text-ink-secondary text-sm">
             Post your first job and get quotes from verified pros nearby.
           </p>
-          <button className="btn-primary mt-2">Post a job</button>
+          <Link to="/jobs/new" className="btn-primary mt-2 block text-center">Post a job</Link>
           <p className="text-xs text-ink-tertiary">
             Full job posting arrives in the next update.
           </p>
