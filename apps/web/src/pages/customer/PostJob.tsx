@@ -17,12 +17,15 @@ interface Draft {
   scheduledFor: string   // ISO string or ''
   budget:       string   // number as string
   location:     string
+  locationLat:  number | null
+  locationLng:  number | null
   promoCode:    string
 }
 
 const EMPTY: Draft = {
   categoryName: '', categoryId: '', title: '', description: '',
-  urgency: 'normal', scheduledFor: '', budget: '', location: '', promoCode: '',
+  urgency: 'normal', scheduledFor: '', budget: '', location: '',
+  locationLat: null, locationLng: null, promoCode: '',
 }
 
 // ── Step indicator ───────────────────────────────────────────────────────────
@@ -180,13 +183,51 @@ function Step2({ draft, set, next, back }: {
 
 // ── Step 3 — Budget + location ────────────────────────────────────────────────
 
-function Step3({ draft, set, next, back }: {
+function Step3({ draft, set, setCoords, next, back }: {
   draft: Draft
   set: (k: keyof Draft, v: string) => void
+  setCoords: (lat: number, lng: number, address: string) => void
   next: () => void
   back: () => void
 }) {
   const canContinue = draft.location.trim().length >= 3
+  const [locating, setLocating] = useState(false)
+  const [locError, setLocError] = useState('')
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      setLocError('Geolocation not supported by your browser.')
+      return
+    }
+    setLocating(true)
+    setLocError('')
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const { latitude: lat, longitude: lng } = pos.coords
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+            { headers: { 'Accept-Language': 'en' } }
+          )
+          const data = await res.json()
+          const addr = data.display_name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+          setCoords(lat, lng, addr)
+        } catch {
+          setCoords(lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+        }
+        setLocating(false)
+      },
+      err => {
+        setLocError(
+          err.code === 1
+            ? 'Location permission denied. Please type your address.'
+            : 'Could not detect location. Please type your address.'
+        )
+        setLocating(false)
+      },
+      { timeout: 10000 }
+    )
+  }
 
   return (
     <div className="flex flex-col flex-1 px-6">
@@ -219,19 +260,44 @@ function Step3({ draft, set, next, back }: {
         <label className="text-sm font-medium text-ink mb-1.5 block">
           Job location <span className="text-red-500">*</span>
         </label>
+
+        {/* GPS button */}
+        <button
+          type="button"
+          onClick={detectLocation}
+          disabled={locating}
+          className="w-full mb-2 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-brand-200 bg-brand-50 text-brand-700 text-sm font-semibold transition-colors hover:bg-brand-100 disabled:opacity-60">
+          {locating
+            ? <><div className="w-4 h-4 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" /> Detecting…</>
+            : <><MapPin size={15} /> Use my current location</>}
+        </button>
+
+        {locError && (
+          <p className="text-xs text-red-500 mb-2">{locError}</p>
+        )}
+
         <div className="relative">
           <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-tertiary" />
           <input
             value={draft.location}
-            onChange={e => set('location', e.target.value)}
-            placeholder="e.g. 12 Bode Thomas, Surulere, Lagos"
+            onChange={e => {
+              set('location', e.target.value)
+              // Clear coords if user manually edits
+            }}
+            placeholder="Or type: 12 Bode Thomas, Surulere, Lagos"
             className="input-field pl-10"
             autoComplete="street-address"
           />
         </div>
-        <p className="text-xs text-ink-tertiary mt-1">
-          📍 GPS pin selection arrives in the next update.
-        </p>
+
+        {draft.locationLat && (
+          <p className="text-xs text-green-700 mt-1.5 flex items-center gap-1">
+            <CheckCircle size={11} /> GPS coordinates captured
+            <span className="text-ink-tertiary ml-1">
+              ({draft.locationLat.toFixed(4)}, {draft.locationLng?.toFixed(4)})
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="mt-auto flex gap-3">
@@ -390,6 +456,10 @@ export default function PostJob() {
 
   const set = (k: keyof Draft, v: string) => setDraft(d => ({ ...d, [k]: v }))
 
+  const setCoords = (lat: number, lng: number, address: string) => {
+    setDraft(d => ({ ...d, locationLat: lat, locationLng: lng, location: address }))
+  }
+
   const post = async () => {
     if (!user) return
     setLoading(true)
@@ -404,6 +474,8 @@ export default function PostJob() {
       scheduled_for:    draft.scheduledFor || null,
       customer_quote:   draft.budget ? Number(draft.budget) : null,
       location_address: draft.location.trim(),
+      location_lat:     draft.locationLat,
+      location_lng:     draft.locationLng,
       promo_code:       draft.promoCode.trim() || null,
       status:           'open',
     })
@@ -443,7 +515,7 @@ export default function PostJob() {
           )}
           {step === 1 && <Step1 draft={draft} set={set} next={() => setStep(2)} />}
           {step === 2 && <Step2 draft={draft} set={set} next={() => setStep(3)} back={() => setStep(1)} />}
-          {step === 3 && <Step3 draft={draft} set={set} next={() => setStep(4)} back={() => setStep(2)} />}
+          {step === 3 && <Step3 draft={draft} set={set} setCoords={setCoords} next={() => setStep(4)} back={() => setStep(2)} />}
           {step === 4 && <Step4 draft={draft} set={set} onPost={post} back={() => setStep(3)} loading={loading} />}
         </div>
       )}
