@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { @apply font-sans antialiased; }
+  body { @apply bg-surface-secondary text-gray-900; min-height: 100dvh; }
+}
+
+@layer components {
+  .sidebar-item {
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium
+           text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer;
+  }
+  .sidebar-item.active { @apply bg-brand-50 text-brand-600; }
+  .admin-card { @apply bg-white rounded-xl border border-gray-200 p-5; }
+  .stat-card {
+    @apply admin-card;
+  }
+  .btn-admin {
+    @apply px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-lg
+           hover:bg-brand-700 transition-colors;
+  }
+  .table-row { @apply border-b border-gray-100 hover:bg-gray-50; }
+}
