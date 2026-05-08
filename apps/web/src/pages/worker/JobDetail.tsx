@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '@myexpert/shared'
 import { useAuth } from '@/contexts/AuthContext'
-import { ArrowLeft, MapPin, Clock, Zap, Tag, CheckCircle, AlertCircle } from 'lucide-react'
+import { ArrowLeft, MapPin, Clock, Zap, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
 
 interface JobDetail {
   id:               string
@@ -191,14 +191,22 @@ export default function WorkerJobDetail() {
 
         {/* Bid status banners */}
         {isAccepted && (
-          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl p-4 mb-4">
-            <CheckCircle size={20} className="text-green-500 shrink-0" />
-            <div>
-              <p className="font-semibold text-green-800">Your bid was accepted! 🎉</p>
-              <p className="text-sm text-green-700">
-                Agreed price: ₦{existing!.amount.toLocaleString()}. The customer will contact you soon.
-              </p>
+          <div className="flex flex-col gap-2 mb-4">
+            <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl p-4">
+              <CheckCircle size={20} className="text-green-500 shrink-0" />
+              <div>
+                <p className="font-semibold text-green-800">Your bid was accepted! 🎉</p>
+                <p className="text-sm text-green-700">
+                  Agreed price: ₦{existing!.amount.toLocaleString()}. The customer will contact you soon.
+                </p>
+              </div>
             </div>
+            {/* Chat button — available once bid is accepted */}
+            <Link
+              to={`/worker/chat/${jobId}`}
+              className="flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-brand-200 bg-brand-50 text-brand-700 text-sm font-semibold transition-colors hover:bg-brand-100">
+              <MessageCircle size={16} /> Message customer
+            </Link>
           </div>
         )}
 

@@ -15,12 +15,14 @@ import CustomerJobs      from './pages/customer/Jobs'
 import CustomerJobDetail from './pages/customer/JobDetail'
 import PostJob           from './pages/customer/PostJob'
 import CustomerChat      from './pages/customer/Chat'
+import CustomerChatRoom  from './pages/customer/ChatRoom'
 import CustomerProfile   from './pages/customer/Profile'
 
 // Pages — Worker
 import WorkerDashboard  from './pages/worker/Dashboard'
 import WorkerJobs       from './pages/worker/Jobs'
 import WorkerJobDetail  from './pages/worker/JobDetail'
+import WorkerChatRoom   from './pages/worker/ChatRoom'
 import WorkerEarnings   from './pages/worker/Earnings'
 import WorkerMapView    from './pages/worker/MapView'
 import WorkerProfilePage from './pages/worker/Profile'
@@ -85,13 +87,15 @@ function AppRoutes() {
         <Route path="/jobs"         element={<ProtectedRoute allowedRoles={['customer']}><CustomerJobs /></ProtectedRoute>} />
         <Route path="/jobs/new"     element={<ProtectedRoute allowedRoles={['customer']}><PostJob /></ProtectedRoute>} />
         <Route path="/jobs/:jobId"  element={<ProtectedRoute allowedRoles={['customer']}><CustomerJobDetail /></ProtectedRoute>} />
-        <Route path="/chat"   element={<ProtectedRoute allowedRoles={['customer']}><CustomerChat /></ProtectedRoute>} />
+        <Route path="/chat"           element={<ProtectedRoute allowedRoles={['customer']}><CustomerChat /></ProtectedRoute>} />
+        <Route path="/chat/:jobId"   element={<ProtectedRoute allowedRoles={['customer']}><CustomerChatRoom /></ProtectedRoute>} />
         <Route path="/me"     element={<ProtectedRoute allowedRoles={['customer']}><CustomerProfile /></ProtectedRoute>} />
 
         {/* Worker */}
         <Route path="/worker/dashboard" element={<ProtectedRoute allowedRoles={['worker']}><WorkerDashboard /></ProtectedRoute>} />
         <Route path="/worker/jobs"           element={<ProtectedRoute allowedRoles={['worker']}><WorkerJobs /></ProtectedRoute>} />
-        <Route path="/worker/jobs/:jobId"    element={<ProtectedRoute allowedRoles={['worker']}><WorkerJobDetail /></ProtectedRoute>} />
+        <Route path="/worker/jobs/:jobId"     element={<ProtectedRoute allowedRoles={['worker']}><WorkerJobDetail /></ProtectedRoute>} />
+        <Route path="/worker/chat/:jobId"    element={<ProtectedRoute allowedRoles={['worker']}><WorkerChatRoom /></ProtectedRoute>} />
         <Route path="/worker/map"       element={<ProtectedRoute allowedRoles={['worker']}><WorkerMapView /></ProtectedRoute>} />
         <Route path="/worker/earnings"  element={<ProtectedRoute allowedRoles={['worker']}><WorkerEarnings /></ProtectedRoute>} />
         <Route path="/worker/profile"   element={<ProtectedRoute allowedRoles={['worker']}><WorkerProfilePage /></ProtectedRoute>} />
