@@ -10,12 +10,14 @@ interface JobDetail {
   description:      string | null
   urgency:          'normal' | 'urgent'
   customer_quote:   number | null
+  final_price:      number | null
   location_address: string | null
   status:           string
   scheduled_for:    string | null
   promo_code:       string | null
   created_at:       string
   category_name:    string | null
+  worker_id:        string | null
 }
 
 interface ExistingBid {
@@ -35,9 +37,11 @@ export default function WorkerJobDetail() {
   const [loading,   setLoading]  = useState(true)
   const [amount,    setAmount]   = useState('')
   const [message,   setMessage]  = useState('')
-  const [submitting,setSubmitting] = useState(false)
-  const [error,     setError]    = useState('')
-  const [success,   setSuccess]  = useState(false)
+  const [submitting,   setSubmitting]    = useState(false)
+  const [error,        setError]         = useState('')
+  const [success,      setSuccess]       = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionError,   setActionError]   = useState('')
 
   useEffect(() => {
     if (!jobId || !user) return
@@ -109,6 +113,26 @@ export default function WorkerJobDetail() {
       .update({ status: 'withdrawn' })
       .eq('id', existing.id)
     setExisting({ ...existing, status: 'withdrawn' })
+  }
+
+  const runAction = async (fn: string, params: Record<string, unknown>) => {
+    setActionLoading(true)
+    setActionError('')
+    const { data, error: rpcErr } = await supabase.rpc(fn, params)
+    setActionLoading(false)
+    if (rpcErr || data?.error) {
+      setActionError(rpcErr?.message ?? data?.error ?? 'Something went wrong.')
+      return
+    }
+    // Reload job
+    if (!jobId || !user) return
+    const { data: jd } = await supabase
+      .from('jobs').select('*, categories(name)').eq('id', jobId).single()
+    if (jd) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const j = jd as any
+      setJob({ ...j, category_name: j.categories?.name ?? null })
+    }
   }
 
   if (loading) return (
@@ -207,6 +231,73 @@ export default function WorkerJobDetail() {
               className="flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-brand-200 bg-brand-50 text-brand-700 text-sm font-semibold transition-colors hover:bg-brand-100">
               <MessageCircle size={16} /> Message customer
             </Link>
+          </div>
+        )}
+
+        {/* ── Job progress actions (when bid accepted and job active) ── */}
+        {isAccepted && (
+          <div className="flex flex-col gap-2 mb-4">
+            {/* Payment received — start job */}
+            {job.status === 'accepted' && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 bg-brand-50 border border-brand-200 rounded-2xl p-3">
+                  <CheckCircle size={18} className="text-brand-500 shrink-0" />
+                  <p className="text-sm font-medium text-brand-800">
+                    💰 Customer paid ₦{job.final_price?.toLocaleString()} — ready to start!
+                  </p>
+                </div>
+                {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+                <button
+                  onClick={() => runAction('start_job', { p_job_id: jobId })}
+                  disabled={actionLoading}
+                  className="btn-primary py-3 text-sm">
+                  {actionLoading ? 'Updating…' : '🔧 Start job →'}
+                </button>
+              </div>
+            )}
+
+            {/* In progress — mark complete */}
+            {job.status === 'in_progress' && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-2xl p-3">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse shrink-0" />
+                  <p className="text-sm font-medium text-orange-800">Job in progress</p>
+                </div>
+                {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+                <button
+                  onClick={() => runAction('complete_job', { p_job_id: jobId })}
+                  disabled={actionLoading}
+                  className="btn-primary py-3 text-sm">
+                  {actionLoading ? 'Updating…' : '✅ Mark job as complete →'}
+                </button>
+              </div>
+            )}
+
+            {/* Done — awaiting confirmation */}
+            {job.status === 'done' && (
+              <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
+                <CheckCircle size={20} className="text-yellow-500 shrink-0" />
+                <div>
+                  <p className="font-semibold text-yellow-800">Waiting for confirmation</p>
+                  <p className="text-sm text-yellow-700">
+                    The customer needs to confirm completion to release your payment.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Confirmed — payment released */}
+            {job.status === 'confirmed' && (
+              <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl p-4">
+                <CheckCircle size={20} className="text-green-500 shrink-0" />
+                <div>
+                  <p className="font-semibold text-green-800">Payment released! 💸</p>
+                  <p className="text-sm text-green-700">
+                    ₦{job.final_price ? (job.final_price * 0.9).toLocaleString() : '—'} added to your balance.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
