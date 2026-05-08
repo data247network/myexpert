@@ -6,18 +6,63 @@ import type { WorkerProfile } from '@myexpert/shared'
 import { Phone, Mail, Star, Briefcase, Shield, ChevronRight, LogOut, CheckCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+interface Review {
+  id:         string
+  rating:     number
+  tags:       string[]
+  comment:    string | null
+  created_at: string
+}
+
+function StarRow({ rating, size = 12 }: { rating: number; size?: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(n => (
+        <Star
+          key={n}
+          size={size}
+          className={n <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-surface-tertiary'}
+        />
+      ))}
+    </div>
+  )
+}
+
+function timeAgo(iso: string) {
+  const secs = (Date.now() - new Date(iso).getTime()) / 1000
+  if (secs < 3600)  return `${Math.floor(secs / 60)}m ago`
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`
+  if (secs < 2592000) return `${Math.floor(secs / 86400)}d ago`
+  return new Date(iso).toLocaleDateString('en-NG', { month: 'short', year: 'numeric' })
+}
+
 export default function WorkerProfilePage() {
   const { user, profile, signOut } = useAuth()
-  const [worker, setWorker] = useState<WorkerProfile | null>(null)
+  const [worker,  setWorker]  = useState<WorkerProfile | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [loadingR, setLoadingR] = useState(true)
 
   useEffect(() => {
     if (!user) return
+
     supabase
       .from('worker_profiles')
       .select('*')
       .eq('id', user.id)
       .single()
       .then(({ data }) => { if (data) setWorker(data as WorkerProfile) })
+
+    supabase
+      .from('reviews')
+      .select('id, rating, tags, comment, created_at')
+      .eq('worker_id', user.id)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .limit(5)
+      .then(({ data }) => {
+        if (data) setReviews(data as Review[])
+        setLoadingR(false)
+      })
   }, [user])
 
   const initial = profile?.full_name?.charAt(0).toUpperCase() ?? '?'
@@ -54,8 +99,12 @@ export default function WorkerProfilePage() {
             <div className="text-center">
               <p className="font-bold text-ink">{worker.rating > 0 ? worker.rating.toFixed(1) : '—'}</p>
               <p className="text-[10px] text-ink-tertiary flex items-center gap-0.5">
-                <Star size={9} /> Rating
+                <Star size={9} className={worker.rating > 0 ? 'text-yellow-400 fill-yellow-400' : ''} /> Rating
               </p>
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-ink">{worker.total_reviews ?? 0}</p>
+              <p className="text-[10px] text-ink-tertiary">Reviews</p>
             </div>
             <div className="text-center">
               <p className="font-bold text-ink">{worker.total_jobs}</p>
@@ -88,8 +137,54 @@ export default function WorkerProfilePage() {
         ))}
       </div>
 
+      {/* Reviews */}
+      <div className="mx-4 mb-4">
+        <p className="section-label mb-3">
+          REVIEWS {worker && worker.total_reviews > 0 && `(${worker.total_reviews})`}
+        </p>
+
+        {loadingR ? (
+          <div className="flex justify-center py-6">
+            <div className="w-5 h-5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : reviews.length === 0 ? (
+          <div className="card text-center py-6">
+            <p className="text-ink-tertiary text-sm">No reviews yet.</p>
+            <p className="text-xs text-ink-tertiary mt-1">
+              Reviews appear here after customers confirm completed jobs.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {reviews.map(r => (
+              <div key={r.id} className="card flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <StarRow rating={r.rating} size={14} />
+                  <span className="text-xs text-ink-tertiary">{timeAgo(r.created_at)}</span>
+                </div>
+
+                {r.tags && r.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {r.tags.map(t => (
+                      <span key={t}
+                        className="text-[10px] font-semibold px-2 py-0.5 bg-brand-50 text-brand-700 rounded-full">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {r.comment && (
+                  <p className="text-sm text-ink-secondary italic">"{r.comment}"</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Actions */}
-      <div className="mx-4 flex flex-col gap-2">
+      <div className="mx-4 flex flex-col gap-2 mb-4">
         {!worker?.is_verified && (
           <Link to="/worker/verify"
             className="card flex items-center gap-3 text-left w-full border-2 border-orange-200">

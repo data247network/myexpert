@@ -6,6 +6,7 @@ import {
   ArrowLeft, MapPin, Clock, Zap, CheckCircle, AlertCircle,
   Star, User, MessageCircle, CreditCard, ThumbsUp, AlertTriangle,
 } from 'lucide-react'
+import ReviewCard from '@/components/reviews/ReviewCard'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -293,12 +294,14 @@ export default function CustomerJobDetail() {
   const [loading,      setLoading]     = useState(true)
   const [accepting,    setAccepting]   = useState<string | null>(null)
   const [error,        setError]       = useState('')
+  const [hasReview,    setHasReview]   = useState(false)
+  const [showReview,   setShowReview]  = useState(true)
 
   const fetchData = async () => {
     if (!jobId || !user) return
     setLoading(true)
 
-    const [{ data: jobData }, { data: bidsData }] = await Promise.all([
+    const [{ data: jobData }, { data: bidsData }, { data: reviewData }] = await Promise.all([
       supabase
         .from('jobs')
         .select('*, categories(name)')
@@ -316,7 +319,14 @@ export default function CustomerJobDetail() {
         `)
         .eq('job_id', jobId)
         .order('amount', { ascending: true }),
+      supabase
+        .from('reviews')
+        .select('id')
+        .eq('job_id', jobId)
+        .maybeSingle(),
     ])
+
+    if (reviewData) setHasReview(true)
 
     if (jobData) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -520,16 +530,30 @@ export default function CustomerJobDetail() {
 
         {/* ── CONFIRMED ────────────────────────────────────────── */}
         {job.status === 'confirmed' && (
-          <div className="card border border-green-100 text-center py-6 flex flex-col items-center gap-2">
-            <CheckCircle size={36} className="text-green-500" />
-            <p className="font-bold text-ink">Job confirmed!</p>
-            <p className="text-sm text-ink-secondary">
-              Payment of ₦{job.final_price?.toLocaleString()} has been released to your worker.
-            </p>
-            {job.service_fee && (
-              <p className="text-xs text-ink-tertiary">
-                MyExpert fee: ₦{(job.service_fee as number).toLocaleString()}
-              </p>
+          <div className="flex flex-col gap-3">
+            <div className="card border border-green-100 flex items-center gap-3 py-4">
+              <CheckCircle size={28} className="text-green-500 shrink-0" />
+              <div>
+                <p className="font-bold text-ink">Job confirmed! 🎉</p>
+                <p className="text-sm text-ink-secondary">
+                  ₦{job.final_price?.toLocaleString()} released to {bookedWorker?.full_name ?? 'your worker'}.
+                </p>
+              </div>
+            </div>
+
+            {/* Review prompt */}
+            {!hasReview && showReview && bookedWorker && (
+              <ReviewCard
+                jobId={job.id}
+                workerName={bookedWorker.full_name}
+                onDone={() => { setHasReview(true); setShowReview(false) }}
+              />
+            )}
+            {hasReview && (
+              <div className="card border border-yellow-100 flex items-center gap-3 py-3">
+                <Star size={18} className="text-yellow-400 fill-yellow-400 shrink-0" />
+                <p className="text-sm font-medium text-ink">You reviewed this job. Thanks!</p>
+              </div>
             )}
           </div>
         )}

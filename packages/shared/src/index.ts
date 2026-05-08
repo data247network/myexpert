@@ -15,6 +15,17 @@ export const NIGERIAN_STATES = [
   'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun',
   'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara',
 ]
+export const REVIEW_TAGS = [
+  'Professional',
+  'On time',
+  'Good value',
+  'Clean work',
+  'Communicative',
+  'Would hire again',
+  'Patient',
+  'Fast worker',
+]
+
 export const VERIFICATION_STEPS = [
   {
     number:      1,

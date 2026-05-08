@@ -1,12 +1,43 @@
+import { useEffect, useState } from 'react'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { useAuth } from '@/contexts/AuthContext'
-import { Bell, Plus } from 'lucide-react'
-import { CATEGORIES } from '@myexpert/shared'
+import { Bell, Plus, Star, CheckCircle } from 'lucide-react'
+import { CATEGORIES, supabase } from '@myexpert/shared'
 import { Link } from 'react-router-dom'
+
+interface TopWorker {
+  id:            string
+  primary_skill: string
+  rating:        number
+  total_reviews: number
+  total_jobs:    number
+  is_verified:   boolean
+  full_name:     string | null
+}
 
 export default function CustomerHome() {
   const { profile } = useAuth()
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
+  const [topWorkers, setTopWorkers] = useState<TopWorker[]>([])
+
+  useEffect(() => {
+    supabase
+      .from('worker_profiles')
+      .select('id, primary_skill, rating, total_reviews, total_jobs, is_verified, profiles(full_name)')
+      .eq('is_verified', true)
+      .gt('rating', 0)
+      .order('rating', { ascending: false })
+      .order('total_reviews', { ascending: false })
+      .limit(6)
+      .then(({ data }) => {
+        if (!data) return
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setTopWorkers(data.map((w: any) => ({
+          ...w,
+          full_name: w.profiles?.full_name ?? null,
+        })))
+      })
+  }, [])
 
   return (
     <div className="page-with-nav">
@@ -64,6 +95,53 @@ export default function CustomerHome() {
           ))}
         </div>
       </div>
+
+      {/* Top rated workers */}
+      {topWorkers.length > 0 && (
+        <div className="mb-5">
+          <div className="flex items-center justify-between px-4 mb-3">
+            <h2 className="font-semibold text-ink">Top rated pros</h2>
+            <Link to="/browse" className="text-sm text-brand-600">See all</Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-hide">
+            {topWorkers.map(w => {
+              const initial = w.full_name?.charAt(0).toUpperCase() ?? '?'
+              return (
+                <Link
+                  key={w.id}
+                  to={`/jobs/new?worker=${w.id}`}
+                  className="flex flex-col items-center gap-2 p-3 bg-surface-secondary rounded-2xl shrink-0 w-[110px] hover:bg-brand-50 transition-colors">
+                  {/* Avatar */}
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center">
+                      <span className="text-lg font-extrabold text-brand-600">{initial}</span>
+                    </div>
+                    {w.is_verified && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
+                        <CheckCircle size={10} className="text-white" />
+                      </div>
+                    )}
+                  </div>
+                  {/* Name */}
+                  <p className="text-xs font-semibold text-ink text-center leading-tight line-clamp-1 w-full">
+                    {w.full_name?.split(' ')[0] ?? 'Pro'}
+                  </p>
+                  {/* Skill */}
+                  <p className="text-[10px] text-ink-tertiary text-center leading-tight">
+                    {w.primary_skill}
+                  </p>
+                  {/* Rating */}
+                  <div className="flex items-center gap-0.5">
+                    <Star size={10} className="text-yellow-400 fill-yellow-400" />
+                    <span className="text-[10px] font-bold text-ink">{w.rating.toFixed(1)}</span>
+                    <span className="text-[10px] text-ink-tertiary">({w.total_reviews})</span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Browse workers */}
       <div className="px-4 mb-4">
