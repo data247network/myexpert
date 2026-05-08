@@ -7,6 +7,7 @@ import {
   Star, User, MessageCircle, CreditCard, ThumbsUp, AlertTriangle,
 } from 'lucide-react'
 import ReviewCard from '@/components/reviews/ReviewCard'
+import { sendPush } from '@/lib/notifications'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,10 +72,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 function PaymentCard({
   job,
+  workerUserId,
   onPaid,
 }: {
-  job:    JobDetail
-  onPaid: () => void
+  job:          JobDetail
+  workerUserId: string | null
+  onPaid:       () => void
 }) {
   const gross    = job.final_price ?? 0
   const fee      = Math.round(gross * 0.1)
@@ -92,6 +95,14 @@ function PaymentCard({
     if (rpcErr || data?.error) {
       setError(rpcErr?.message ?? data?.error ?? 'Payment failed.')
       return
+    }
+    if (workerUserId) {
+      sendPush(
+        workerUserId,
+        '💰 Payment received — start the job!',
+        `Customer paid ₦${(job.final_price ?? 0).toLocaleString()} for "${job.title}". Ready to begin!`,
+        `${window.location.origin}/worker/jobs/${job.id}`,
+      )
     }
     onPaid()
   }
@@ -184,10 +195,16 @@ function PaymentCard({
 
 function ConfirmCard({
   jobId,
+  jobTitle,
+  workerUserId,
+  finalPrice,
   onDone,
 }: {
-  jobId:  string
-  onDone: () => void
+  jobId:        string
+  jobTitle:     string
+  workerUserId: string | null
+  finalPrice:   number | null
+  onDone:       () => void
 }) {
   const [confirming,  setConfirming]  = useState(false)
   const [disputing,   setDisputing]   = useState(false)
@@ -203,6 +220,15 @@ function ConfirmCard({
     if (rpcErr || data?.error) {
       setError(rpcErr?.message ?? data?.error ?? 'Something went wrong.')
       return
+    }
+    if (workerUserId) {
+      const net = finalPrice ? Math.round(finalPrice * 0.9) : 0
+      sendPush(
+        workerUserId,
+        '💸 Payment released!',
+        `₦${net.toLocaleString()} has been added to your balance for "${jobTitle}".`,
+        `${window.location.origin}/worker/earnings`,
+      )
     }
     onDone()
   }
@@ -377,7 +403,7 @@ export default function CustomerJobDetail() {
 
   useEffect(() => { fetchData() }, [jobId, user]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleAccept = async (bidId: string) => {
+  const handleAccept = async (bidId: string, workerProfileId: string, bidAmount: number) => {
     setAccepting(bidId)
     setError('')
     const { data, error: rpcError } = await supabase.rpc('accept_bid', { p_bid_id: bidId })
@@ -386,6 +412,13 @@ export default function CustomerJobDetail() {
       setAccepting(null)
       return
     }
+    // workerProfileId === worker's Supabase user ID (worker_profiles.id = auth.users.id)
+    sendPush(
+      workerProfileId,
+      '🎉 Your bid was accepted!',
+      `Your ₦${bidAmount.toLocaleString()} bid on "${job?.title ?? 'a job'}" was accepted. The customer will pay shortly.`,
+      `${window.location.origin}/worker/jobs/${jobId}`,
+    )
     await fetchData()
     setAccepting(null)
   }
@@ -511,7 +544,7 @@ export default function CustomerJobDetail() {
 
         {/* ── PAYMENT (booked → pay) ────────────────────────────── */}
         {job.status === 'booked' && (
-          <PaymentCard job={job} onPaid={fetchData} />
+          <PaymentCard job={job} workerUserId={job.worker_id} onPaid={fetchData} />
         )}
 
         {/* ── CHAT BUTTON (active jobs) ─────────────────────────── */}
@@ -525,7 +558,13 @@ export default function CustomerJobDetail() {
 
         {/* ── CONFIRM / DISPUTE (done) ──────────────────────────── */}
         {job.status === 'done' && (
-          <ConfirmCard jobId={job.id} onDone={fetchData} />
+          <ConfirmCard
+            jobId={job.id}
+            jobTitle={job.title}
+            workerUserId={job.worker_id}
+            finalPrice={job.final_price}
+            onDone={fetchData}
+          />
         )}
 
         {/* ── CONFIRMED ────────────────────────────────────────── */}
@@ -616,7 +655,7 @@ export default function CustomerJobDetail() {
         {isBooked && acceptedBid && (
           <>
             <p className="section-label">Accepted bid</p>
-            <BidCard bid={acceptedBid} onAccept={() => {}} accepting={false} readonly />
+            <BidCard bid={acceptedBid} onAccept={() => undefined} accepting={false} readonly />
           </>
         )}
 
@@ -631,7 +670,7 @@ function BidCard({
   bid, onAccept, accepting, readonly = false,
 }: {
   bid:       BidItem
-  onAccept:  (id: string) => void
+  onAccept:  (id: string, workerProfileId: string, amount: number) => void
   accepting: boolean
   readonly?: boolean
 }) {
@@ -676,7 +715,7 @@ function BidCard({
 
       {!readonly && (
         <button
-          onClick={() => onAccept(bid.id)}
+          onClick={() => onAccept(bid.id, w.id, bid.amount)}
           disabled={accepting}
           className="btn-primary py-3 text-sm">
           {accepting ? 'Booking…' : `Accept · ₦${bid.amount.toLocaleString()}`}

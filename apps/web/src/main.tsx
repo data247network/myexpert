@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { APIProvider } from '@vis.gl/react-google-maps'
 import App from './App'
 import './index.css'
+import { initOneSignal } from '@/lib/notifications'
+
+// Boot OneSignal (no-op when VITE_ONESIGNAL_APP_ID is not set)
+initOneSignal()
 
 const queryClient = new QueryClient({
   defaultOptions: {

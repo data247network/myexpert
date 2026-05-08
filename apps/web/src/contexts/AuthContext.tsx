@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@myexpert/shared'
 import type { Profile, UserRole } from '@myexpert/shared'
+import { subscribeUser, unsubscribeUser } from '@/lib/notifications'
 
 interface AuthContextType {
   user:    User | null
@@ -46,8 +47,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (_event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
-        if (session?.user) fetchProfile(session.user.id)
-        else setProfile(null)
+        if (session?.user) {
+          fetchProfile(session.user.id)
+          subscribeUser(session.user.id)
+        } else {
+          setProfile(null)
+        }
         setLoading(false)
       }
     )
@@ -56,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = async () => {
+    await unsubscribeUser()
     await supabase.auth.signOut()
     setProfile(null)
   }

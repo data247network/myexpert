@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '@myexpert/shared'
 import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, MapPin, Clock, Zap, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
+import { sendPush } from '@/lib/notifications'
 
 interface JobDetail {
   id:               string
@@ -18,6 +19,7 @@ interface JobDetail {
   created_at:       string
   category_name:    string | null
   worker_id:        string | null
+  customer_id:      string | null
 }
 
 interface ExistingBid {
@@ -28,9 +30,9 @@ interface ExistingBid {
 }
 
 export default function WorkerJobDetail() {
-  const { jobId }    = useParams<{ jobId: string }>()
-  const { user }     = useAuth()
-  const navigate     = useNavigate()
+  const { jobId }          = useParams<{ jobId: string }>()
+  const { user, profile }  = useAuth()
+  const navigate           = useNavigate()
 
   const [job,       setJob]      = useState<JobDetail | null>(null)
   const [existing,  setExisting] = useState<ExistingBid | null>(null)
@@ -49,7 +51,7 @@ export default function WorkerJobDetail() {
       // Job details
       supabase
         .from('jobs')
-        .select('*, categories(name)')
+        .select('*, categories(name), customer_id')
         .eq('id', jobId)
         .single(),
       // Any existing bid from this worker
@@ -96,6 +98,17 @@ export default function WorkerJobDetail() {
     setSubmitting(false)
     if (insertError) { setError(insertError.message); return }
     setSuccess(true)
+
+    // Notify the customer
+    if (job?.customer_id) {
+      sendPush(
+        job.customer_id,
+        '💼 New bid received',
+        `${profile?.full_name ?? 'A worker'} bid ₦${Number(amount).toLocaleString()} on "${job.title}"`,
+        `${window.location.origin}/jobs/${jobId}`,
+      )
+    }
+
     // Reload bid
     const { data } = await supabase
       .from('bids')
@@ -115,7 +128,11 @@ export default function WorkerJobDetail() {
     setExisting({ ...existing, status: 'withdrawn' })
   }
 
-  const runAction = async (fn: string, params: Record<string, unknown>) => {
+  const runAction = async (
+    fn: string,
+    params: Record<string, unknown>,
+    onSuccess?: () => void,
+  ) => {
     setActionLoading(true)
     setActionError('')
     const { data, error: rpcErr } = await supabase.rpc(fn, params)
@@ -124,10 +141,11 @@ export default function WorkerJobDetail() {
       setActionError(rpcErr?.message ?? data?.error ?? 'Something went wrong.')
       return
     }
+    onSuccess?.()
     // Reload job
     if (!jobId || !user) return
     const { data: jd } = await supabase
-      .from('jobs').select('*, categories(name)').eq('id', jobId).single()
+      .from('jobs').select('*, categories(name), customer_id').eq('id', jobId).single()
     if (jd) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const j = jd as any
@@ -248,7 +266,16 @@ export default function WorkerJobDetail() {
                 </div>
                 {actionError && <p className="text-sm text-red-600">{actionError}</p>}
                 <button
-                  onClick={() => runAction('start_job', { p_job_id: jobId })}
+                  onClick={() => runAction('start_job', { p_job_id: jobId }, () => {
+                    if (job?.customer_id) {
+                      sendPush(
+                        job.customer_id,
+                        '🔧 Work has started!',
+                        `Your worker is now on the job: "${job.title}"`,
+                        `${window.location.origin}/jobs/${jobId}`,
+                      )
+                    }
+                  })}
                   disabled={actionLoading}
                   className="btn-primary py-3 text-sm">
                   {actionLoading ? 'Updating…' : '🔧 Start job →'}
@@ -265,7 +292,16 @@ export default function WorkerJobDetail() {
                 </div>
                 {actionError && <p className="text-sm text-red-600">{actionError}</p>}
                 <button
-                  onClick={() => runAction('complete_job', { p_job_id: jobId })}
+                  onClick={() => runAction('complete_job', { p_job_id: jobId }, () => {
+                    if (job?.customer_id) {
+                      sendPush(
+                        job.customer_id,
+                        '✅ Job complete — review needed',
+                        `Your worker says "${job.title}" is done. Confirm to release payment.`,
+                        `${window.location.origin}/jobs/${jobId}`,
+                      )
+                    }
+                  })}
                   disabled={actionLoading}
                   className="btn-primary py-3 text-sm">
                   {actionLoading ? 'Updating…' : '✅ Mark job as complete →'}
