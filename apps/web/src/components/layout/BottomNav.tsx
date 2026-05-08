@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Search, Briefcase, MessageCircle, User } from 'lucide-react'
+import { Home, Search, Briefcase, MessageCircle, User, MapPin, Wallet2, LayoutDashboard } from 'lucide-react'
 import { clsx } from 'clsx'
 
 interface NavItem {
@@ -17,10 +17,11 @@ const customerNav: NavItem[] = [
 ]
 
 const workerNav: NavItem[] = [
-  { to: '/worker/jobs',      icon: Briefcase,     label: 'Jobs'     },
-  { to: '/worker/map',       icon: Search,        label: 'Map'      },
-  { to: '/worker/earnings',  icon: Home,          label: 'Earnings' },
-  { to: '/worker/profile',   icon: User,          label: 'Profile'  },
+  { to: '/worker/dashboard', icon: LayoutDashboard, label: 'Home'     },
+  { to: '/worker/jobs',      icon: Briefcase,       label: 'Jobs'     },
+  { to: '/worker/map',       icon: MapPin,          label: 'Map'      },
+  { to: '/worker/earnings',  icon: Wallet2,         label: 'Earnings' },
+  { to: '/worker/profile',   icon: User,            label: 'Profile'  },
 ]
 
 export function BottomNav({ variant = 'customer' }: { variant?: 'customer' | 'worker' }) {

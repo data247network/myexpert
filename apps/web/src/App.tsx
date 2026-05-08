@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 // Pages — Landing & Auth
@@ -26,12 +26,25 @@ import VerificationFlow from './pages/worker/VerificationFlow'
 // Shared UI
 import { Spinner } from './components/ui/Spinner'
 
+// ── Layouts ─────────────────────────────────────────────────────────────────
+
+/** Wraps all non-landing pages in the 430px mobile shell */
+function MobileLayout() {
+  return (
+    <div className="app-shell">
+      <Outlet />
+    </div>
+  )
+}
+
+// ── Route guards ─────────────────────────────────────────────────────────────
+
 function ProtectedRoute({ children, allowedRoles }: {
   children: JSX.Element
   allowedRoles: string[]
 }) {
   const { user, role, loading } = useAuth()
-  if (loading) return <div className="app-shell flex items-center justify-center h-dvh"><Spinner /></div>
+  if (loading) return <div className="flex items-center justify-center h-dvh"><Spinner /></div>
   if (!user)   return <Navigate to="/onboarding" replace />
   if (!allowedRoles.includes(role ?? '')) return <Navigate to="/onboarding" replace />
   return children
@@ -39,39 +52,48 @@ function ProtectedRoute({ children, allowedRoles }: {
 
 function PublicRoute({ children }: { children: JSX.Element }) {
   const { user, role, loading } = useAuth()
-  if (loading) return <div className="app-shell flex items-center justify-center h-dvh"><Spinner /></div>
+  if (loading) return <div className="flex items-center justify-center h-dvh"><Spinner /></div>
   if (user && role === 'customer') return <Navigate to="/home" replace />
   if (user && role === 'worker')   return <Navigate to="/worker/dashboard" replace />
   if (user && role === 'admin')    return <Navigate to="/admin" replace />
   return children
 }
 
+// ── Routes ───────────────────────────────────────────────────────────────────
+
 function AppRoutes() {
   return (
     <Routes>
-      {/* ── Public ──────────────────────────────── */}
-      <Route path="/"           element={<LandingPage />} />
-      <Route path="/onboarding" element={<PublicRoute><OnboardingPage /></PublicRoute>} />
-      <Route path="/login"      element={<PublicRoute><LoginPage /></PublicRoute>} />
-      <Route path="/signup/customer" element={<PublicRoute><SignupCustomer /></PublicRoute>} />
-      <Route path="/signup/worker"   element={<PublicRoute><SignupWorker /></PublicRoute>} />
+      {/* ── Full-width (no mobile shell) ──── */}
+      <Route path="/" element={<LandingPage />} />
 
-      {/* ── Customer ────────────────────────────── */}
-      <Route path="/home"    element={<ProtectedRoute allowedRoles={['customer']}><CustomerHome /></ProtectedRoute>} />
-      <Route path="/browse"  element={<ProtectedRoute allowedRoles={['customer']}><CustomerBrowse /></ProtectedRoute>} />
-      <Route path="/jobs"    element={<ProtectedRoute allowedRoles={['customer']}><CustomerJobs /></ProtectedRoute>} />
-      <Route path="/chat"    element={<ProtectedRoute allowedRoles={['customer']}><CustomerChat /></ProtectedRoute>} />
-      <Route path="/me"      element={<ProtectedRoute allowedRoles={['customer']}><CustomerProfile /></ProtectedRoute>} />
+      {/* ── Mobile shell ─────────────────── */}
+      <Route element={<MobileLayout />}>
 
-      {/* ── Worker ──────────────────────────────── */}
-      <Route path="/worker/dashboard"    element={<ProtectedRoute allowedRoles={['worker']}><WorkerDashboard /></ProtectedRoute>} />
-      <Route path="/worker/jobs"         element={<ProtectedRoute allowedRoles={['worker']}><WorkerJobs /></ProtectedRoute>} />
-      <Route path="/worker/map"          element={<ProtectedRoute allowedRoles={['worker']}><WorkerMapView /></ProtectedRoute>} />
-      <Route path="/worker/earnings"     element={<ProtectedRoute allowedRoles={['worker']}><WorkerEarnings /></ProtectedRoute>} />
-      <Route path="/worker/profile"      element={<ProtectedRoute allowedRoles={['worker']}><WorkerProfilePage /></ProtectedRoute>} />
-      <Route path="/worker/verify"       element={<ProtectedRoute allowedRoles={['worker']}><VerificationFlow /></ProtectedRoute>} />
+        {/* Auth */}
+        <Route path="/onboarding"      element={<PublicRoute><OnboardingPage /></PublicRoute>} />
+        <Route path="/login"           element={<PublicRoute><LoginPage /></PublicRoute>} />
+        <Route path="/signup/customer" element={<PublicRoute><SignupCustomer /></PublicRoute>} />
+        <Route path="/signup/worker"   element={<PublicRoute><SignupWorker /></PublicRoute>} />
 
-      {/* ── Fallback ────────────────────────────── */}
+        {/* Customer */}
+        <Route path="/home"   element={<ProtectedRoute allowedRoles={['customer']}><CustomerHome /></ProtectedRoute>} />
+        <Route path="/browse" element={<ProtectedRoute allowedRoles={['customer']}><CustomerBrowse /></ProtectedRoute>} />
+        <Route path="/jobs"   element={<ProtectedRoute allowedRoles={['customer']}><CustomerJobs /></ProtectedRoute>} />
+        <Route path="/chat"   element={<ProtectedRoute allowedRoles={['customer']}><CustomerChat /></ProtectedRoute>} />
+        <Route path="/me"     element={<ProtectedRoute allowedRoles={['customer']}><CustomerProfile /></ProtectedRoute>} />
+
+        {/* Worker */}
+        <Route path="/worker/dashboard" element={<ProtectedRoute allowedRoles={['worker']}><WorkerDashboard /></ProtectedRoute>} />
+        <Route path="/worker/jobs"      element={<ProtectedRoute allowedRoles={['worker']}><WorkerJobs /></ProtectedRoute>} />
+        <Route path="/worker/map"       element={<ProtectedRoute allowedRoles={['worker']}><WorkerMapView /></ProtectedRoute>} />
+        <Route path="/worker/earnings"  element={<ProtectedRoute allowedRoles={['worker']}><WorkerEarnings /></ProtectedRoute>} />
+        <Route path="/worker/profile"   element={<ProtectedRoute allowedRoles={['worker']}><WorkerProfilePage /></ProtectedRoute>} />
+        <Route path="/worker/verify"    element={<ProtectedRoute allowedRoles={['worker']}><VerificationFlow /></ProtectedRoute>} />
+
+      </Route>
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
@@ -81,9 +103,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="app-shell">
-          <AppRoutes />
-        </div>
+        <AppRoutes />
       </AuthProvider>
     </BrowserRouter>
   )
