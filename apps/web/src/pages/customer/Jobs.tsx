@@ -38,7 +38,7 @@ function JobRow({ job }: { job: Job }) {
     : <Clock size={18} className="text-ink-tertiary shrink-0" />
 
   return (
-    <div className={`card flex items-center gap-3 ${isDone ? 'opacity-60' : ''}`}>
+    <Link to={`/jobs/${job.id}`} className={`card flex items-center gap-3 hover:border hover:border-brand-200 transition-colors ${isDone ? 'opacity-60' : ''}`}>
       {icon}
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm text-ink truncate">{job.title}</p>
@@ -52,7 +52,7 @@ function JobRow({ job }: { job: Job }) {
         </div>
       </div>
       <ChevronRight size={16} className="text-ink-tertiary shrink-0" />
-    </div>
+    </Link>
   )
 }
 
