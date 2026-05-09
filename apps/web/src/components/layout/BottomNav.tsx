@@ -28,7 +28,7 @@ export function BottomNav({ variant = 'customer' }: { variant?: 'customer' | 'wo
   const items = variant === 'customer' ? customerNav : workerNav
 
   return (
-    <nav className="bottom-nav safe-bottom">
+    <nav className="bottom-nav">
       {items.map(({ to, icon: Icon, label }) => (
         <NavLink key={to} to={to} className={({ isActive }) =>
           clsx('nav-item', isActive && 'active')
