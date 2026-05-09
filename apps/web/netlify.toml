@@ -1,11 +1,53 @@
 [build]
+  base      = "."
   command   = "npm install && npm run build:web"
   publish   = "apps/web/dist"
 
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS    = "--legacy-peer-deps"
+
+# ── SPA fallback ──────────────────────────────────────────────────────────────
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
   status = 200
 
-[build.environment]
-  NODE_VERSION = "20"
+# ── Security headers (all routes) ─────────────────────────────────────────────
+[[headers]]
+  for = "/*"
+
+  [headers.values]
+    X-Frame-Options           = "DENY"
+    X-Content-Type-Options    = "nosniff"
+    Referrer-Policy           = "strict-origin-when-cross-origin"
+    Permissions-Policy        = "camera=(), microphone=(), geolocation=(self)"
+    X-XSS-Protection          = "1; mode=block"
+
+# ── Cache static assets aggressively ──────────────────────────────────────────
+[[headers]]
+  for = "/assets/*"
+
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# ── Service worker — never cache ───────────────────────────────────────────────
+[[headers]]
+  for = "/OneSignalSDKWorker.js"
+
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+    Service-Worker-Allowed = "/"
+
