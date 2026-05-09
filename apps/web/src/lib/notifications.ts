@@ -1,13 +1,15 @@
 /**
  * notifications.ts
- * OneSignal Web Push helpers.
+ * Unified notification helpers — OneSignal web push + Termii SMS.
  *
- * Requires VITE_ONESIGNAL_APP_ID in .env.local.
- * When the env var is absent (dev / CI) every call is a no-op so the rest of
- * the app keeps working without a OneSignal account.
+ * Both channels are fire-and-forget. Either can be absent without breaking
+ * anything (push requires VITE_ONESIGNAL_APP_ID; SMS always attempts if the
+ * send-sms edge function is deployed).
  */
 import OneSignal from 'react-onesignal'
 import { supabase } from '@myexpert/shared'
+
+// ── OneSignal ─────────────────────────────────────────────────────────────────
 
 let _initialized = false
 
@@ -28,8 +30,7 @@ export async function initOneSignal(): Promise<void> {
 }
 
 /**
- * Link the browser subscription to the signed-in user's Supabase UUID so we
- * can target them by external_id from the server.
+ * Link browser subscription to the signed-in user's Supabase UUID.
  * Call this right after the user authenticates.
  */
 export async function subscribeUser(userId: string): Promise<void> {
@@ -42,7 +43,7 @@ export async function subscribeUser(userId: string): Promise<void> {
   }
 }
 
-/** Unlink the subscription on sign-out. */
+/** Unlink subscription on sign-out. */
 export async function unsubscribeUser(): Promise<void> {
   if (!_initialized) return
   try {
@@ -52,10 +53,7 @@ export async function unsubscribeUser(): Promise<void> {
   }
 }
 
-/**
- * Fire-and-forget: ask the `send-push` edge function to push a notification
- * to another user.  Errors are swallowed — push is always best-effort.
- */
+/** Fire-and-forget web push via `send-push` edge function. */
 export async function sendPush(
   toUserId: string,
   title:    string,
@@ -63,7 +61,7 @@ export async function sendPush(
   url?:     string,
 ): Promise<void> {
   const appId = import.meta.env.VITE_ONESIGNAL_APP_ID as string | undefined
-  if (!appId) return   // OneSignal not configured
+  if (!appId) return
   try {
     await supabase.functions.invoke('send-push', {
       body: { to_user_id: toUserId, title, message, url },
@@ -71,4 +69,45 @@ export async function sendPush(
   } catch (e) {
     console.warn('[OneSignal] sendPush failed:', e)
   }
+}
+
+// ── Termii SMS ────────────────────────────────────────────────────────────────
+
+/**
+ * Fire-and-forget SMS via `send-sms` edge function.
+ * The function looks up the recipient's phone number server-side.
+ * Gracefully skips if the user has no phone on file.
+ */
+export async function sendSms(
+  toUserId: string,
+  message:  string,
+): Promise<void> {
+  try {
+    await supabase.functions.invoke('send-sms', {
+      body: { to_user_id: toUserId, message },
+    })
+  } catch (e) {
+    console.warn('[Termii] sendSms failed:', e)
+  }
+}
+
+// ── Unified helper ────────────────────────────────────────────────────────────
+
+/**
+ * notify() — sends BOTH a push notification AND an SMS concurrently.
+ * Use this everywhere instead of calling sendPush/sendSms individually.
+ *
+ * SMS text = `${title}: ${message}` (compact, under 160 chars)
+ */
+export async function notify(
+  toUserId: string,
+  title:    string,
+  message:  string,
+  url?:     string,
+): Promise<void> {
+  const smsText = `MyExpert: ${title} — ${message}`.slice(0, 160)
+  await Promise.allSettled([
+    sendPush(toUserId, title, message, url),
+    sendSms(toUserId, smsText),
+  ])
 }

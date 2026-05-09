@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '@myexpert/shared'
 import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, MapPin, Clock, Zap, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
-import { sendPush } from '@/lib/notifications'
+import { notify } from '@/lib/notifications'
 
 interface JobDetail {
   id:               string
@@ -101,7 +101,7 @@ export default function WorkerJobDetail() {
 
     // Notify the customer
     if (job?.customer_id) {
-      sendPush(
+      notify(
         job.customer_id,
         '💼 New bid received',
         `${profile?.full_name ?? 'A worker'} bid ₦${Number(amount).toLocaleString()} on "${job.title}"`,
@@ -268,7 +268,7 @@ export default function WorkerJobDetail() {
                 <button
                   onClick={() => runAction('start_job', { p_job_id: jobId }, () => {
                     if (job?.customer_id) {
-                      sendPush(
+                      notify(
                         job.customer_id,
                         '🔧 Work has started!',
                         `Your worker is now on the job: "${job.title}"`,
@@ -294,7 +294,7 @@ export default function WorkerJobDetail() {
                 <button
                   onClick={() => runAction('complete_job', { p_job_id: jobId }, () => {
                     if (job?.customer_id) {
-                      sendPush(
+                      notify(
                         job.customer_id,
                         '✅ Job complete — review needed',
                         `Your worker says "${job.title}" is done. Confirm to release payment.`,

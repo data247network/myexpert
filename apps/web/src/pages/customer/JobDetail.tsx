@@ -7,7 +7,7 @@ import {
   Star, User, MessageCircle, CreditCard, ThumbsUp, AlertTriangle,
 } from 'lucide-react'
 import ReviewCard from '@/components/reviews/ReviewCard'
-import { sendPush } from '@/lib/notifications'
+import { notify } from '@/lib/notifications'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ function PaymentCard({
       return
     }
     if (workerUserId) {
-      sendPush(
+      notify(
         workerUserId,
         '💰 Payment received — start the job!',
         `Customer paid ₦${(job.final_price ?? 0).toLocaleString()} for "${job.title}". Ready to begin!`,
@@ -223,7 +223,7 @@ function ConfirmCard({
     }
     if (workerUserId) {
       const net = finalPrice ? Math.round(finalPrice * 0.9) : 0
-      sendPush(
+      notify(
         workerUserId,
         '💸 Payment released!',
         `₦${net.toLocaleString()} has been added to your balance for "${jobTitle}".`,
@@ -413,7 +413,7 @@ export default function CustomerJobDetail() {
       return
     }
     // workerProfileId === worker's Supabase user ID (worker_profiles.id = auth.users.id)
-    sendPush(
+    notify(
       workerProfileId,
       '🎉 Your bid was accepted!',
       `Your ₦${bidAmount.toLocaleString()} bid on "${job?.title ?? 'a job'}" was accepted. The customer will pay shortly.`,
