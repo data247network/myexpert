@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import LandingPage      from './pages/landing/LandingPage'
 import OnboardingPage   from './pages/auth/OnboardingPage'
 import LoginPage        from './pages/auth/LoginPage'
+import AuthCallback     from './pages/auth/AuthCallback'
 import SignupCustomer   from './pages/auth/SignupCustomer'
 import SignupWorker     from './pages/auth/SignupWorker'
 
@@ -76,6 +77,7 @@ function AppRoutes() {
       <Route element={<MobileLayout />}>
 
         {/* Auth */}
+        <Route path="/auth/callback"   element={<AuthCallback />} />
         <Route path="/onboarding"      element={<PublicRoute><OnboardingPage /></PublicRoute>} />
         <Route path="/login"           element={<PublicRoute><LoginPage /></PublicRoute>} />
         <Route path="/signup/customer" element={<PublicRoute><SignupCustomer /></PublicRoute>} />

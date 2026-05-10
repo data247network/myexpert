@@ -1,8 +1,18 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { CheckCircle, MapPin, Shield, Star } from 'lucide-react'
 import { CATEGORIES } from '@myexpert/shared'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function LandingPage() {
+  const { user, role, loading } = useAuth()
+
+  // Redirect already-signed-in users (e.g. landed here from old magic link)
+  if (!loading && user) {
+    if (role === 'customer') return <Navigate to="/home"              replace />
+    if (role === 'worker')   return <Navigate to="/worker/dashboard"  replace />
+    if (role === 'admin')    return <Navigate to="/admin"             replace />
+  }
+
   return (
     <div className="min-h-dvh bg-white">
       {/* Nav */}
