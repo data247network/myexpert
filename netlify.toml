@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Root netlify.toml — used by the MAIN WEB SITE (myexpert.com.ng)
+# The admin site (admin.myexpert.com.ng) is a separate Netlify site
+# configured with apps/admin as its Base Directory.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[build]
+  command   = "npm install && npm run build:web"
+  publish   = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS    = "--legacy-peer-deps"
+
+# ── SPA fallback — ALL routes served by index.html ───────────────────────────
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# ── Security headers ──────────────────────────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options        = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "strict-origin-when-cross-origin"
+    Permissions-Policy     = "camera=(), microphone=(), geolocation=(self)"
+    X-XSS-Protection       = "1; mode=block"
+
+# ── Long-lived asset caching ──────────────────────────────────────────────────
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# ── Service worker — never cache ──────────────────────────────────────────────
+[[headers]]
+  for = "/OneSignalSDKWorker.js"
+  [headers.values]
+    Cache-Control          = "no-store, no-cache, must-revalidate"
+    Service-Worker-Allowed = "/"
