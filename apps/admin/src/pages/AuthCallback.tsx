@@ -1,17 +1,35 @@
 /**
- * Admin AuthCallback — handles magic-link redirects for the ops dashboard.
- * Supabase sets the session from the URL hash automatically.
- * We wait, then check the role is 'admin' before allowing entry.
+ * Admin AuthCallback — handles magic-link and invite redirects.
+ * Shows a friendly expired-link message instead of hanging spinner.
  */
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@myexpert/shared'
+
+function parseHashError(): string | null {
+  const hash = window.location.hash.substring(1)
+  if (!hash.includes('error=')) return null
+  const params = new URLSearchParams(hash)
+  const desc = params.get('error_description') ?? params.get('error') ?? 'Authentication failed'
+  return decodeURIComponent(desc.replace(/\+/g, ' '))
+}
 
 export default function AuthCallback() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // Check for error in hash immediately
+    const hashErr = parseHashError()
+    if (hashErr) {
+      setError(
+        hashErr.includes('expired') || hashErr.includes('invalid')
+          ? 'This link has expired. Please request a new magic link from the login page.'
+          : hashErr
+      )
+      return
+    }
+
     const check = async () => {
       // Give Supabase client time to process the URL hash
       await new Promise(r => setTimeout(r, 800))
@@ -22,7 +40,7 @@ export default function AuthCallback() {
         return
       }
 
-      // Check role
+      // Verify admin role
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -32,7 +50,7 @@ export default function AuthCallback() {
       if (profile?.role === 'admin') {
         navigate('/overview', { replace: true })
       } else {
-        setError('Access denied — admin accounts only.')
+        setError('Access denied — this dashboard is for admin accounts only.')
         await supabase.auth.signOut()
       }
     }
@@ -40,12 +58,19 @@ export default function AuthCallback() {
   }, [navigate])
 
   if (error) return (
-    <div className="min-h-dvh flex items-center justify-center">
+    <div className="min-h-dvh flex items-center justify-center p-4">
       <div className="text-center max-w-sm">
-        <p className="text-4xl mb-3">🚫</p>
-        <p className="font-bold text-gray-900 mb-1">Access denied</p>
-        <p className="text-sm text-gray-500 mb-4">{error}</p>
-        <a href="/login" className="text-purple-600 text-sm font-medium hover:underline">← Back to login</a>
+        <p className="text-5xl mb-4">
+          {error.includes('expired') ? '⏱️' : '🚫'}
+        </p>
+        <p className="font-bold text-gray-900 text-lg mb-2">
+          {error.includes('expired') ? 'Link expired' : 'Access denied'}
+        </p>
+        <p className="text-sm text-gray-500 mb-6">{error}</p>
+        <a href="/login"
+          className="inline-block px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl text-sm hover:bg-purple-700">
+          Back to login →
+        </a>
       </div>
     </div>
   )
