@@ -21,21 +21,22 @@ export default function LoginPage() {
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password })
     if (err) { setError(err.message); setLoading(false); return }
 
-    // Verify admin role before allowing in
+    // Verify admin role server-side before allowing in
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
       .single()
 
-    setLoading(false)
     if (profile?.role !== 'admin') {
       await supabase.auth.signOut()
       setError('Access denied — admin accounts only.')
+      setLoading(false)
       return
     }
-    // AdminGuard in App.tsx will pick up the session and route to /overview
-    window.location.href = '/overview'
+    setLoading(false)
+    // Hard navigate so AdminGuard re-evaluates with the fresh session
+    window.location.replace('/overview')
   }
 
   // ── Magic link ──────────────────────────────────────────────────────────────

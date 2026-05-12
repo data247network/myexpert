@@ -3,6 +3,24 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@myexpert/shared'
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 
+/** After sign-in, fetch role and navigate directly — don't rely on AuthContext timing */
+async function redirectByRole(navigate: ReturnType<typeof useNavigate>) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) { navigate('/login', { replace: true }); return }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single()
+
+  const role = profile?.role
+  if (role === 'customer') navigate('/home',              { replace: true })
+  else if (role === 'worker')  navigate('/worker/dashboard', { replace: true })
+  else if (role === 'admin')   navigate('/admin',            { replace: true })
+  else                         navigate('/onboarding',       { replace: true })
+}
+
 type Mode = 'password' | 'magic'
 
 export default function LoginPage() {
@@ -20,10 +38,10 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true); setError('')
     const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+    if (err) { setError(err.message); setLoading(false); return }
+    // Fetch role directly — don't wait for AuthContext async load
+    await redirectByRole(navigate)
     setLoading(false)
-    if (err) { setError(err.message); return }
-    // AuthContext will pick up session; LandingPage redirect handles the rest
-    navigate('/auth/callback', { replace: true })
   }
 
   // ── Magic link ──────────────────────────────────────────────────────────────
