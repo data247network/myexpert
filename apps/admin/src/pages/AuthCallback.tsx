@@ -19,6 +19,13 @@ export default function AuthCallback() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // Password reset link → redirect to reset page
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    if (hashParams.get('type') === 'recovery') {
+      navigate('/reset-password', { replace: true })
+      return
+    }
+
     // Check for error in hash immediately
     const hashErr = parseHashError()
     if (hashErr) {

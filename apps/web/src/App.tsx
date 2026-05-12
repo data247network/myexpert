@@ -6,6 +6,8 @@ import LandingPage      from './pages/landing/LandingPage'
 import OnboardingPage   from './pages/auth/OnboardingPage'
 import LoginPage        from './pages/auth/LoginPage'
 import AuthCallback     from './pages/auth/AuthCallback'
+import ForgotPassword   from './pages/auth/ForgotPassword'
+import ResetPassword    from './pages/auth/ResetPassword'
 import SignupCustomer   from './pages/auth/SignupCustomer'
 import SignupWorker     from './pages/auth/SignupWorker'
 
@@ -76,8 +78,10 @@ function AppRoutes() {
       {/* ── Mobile shell ─────────────────── */}
       <Route element={<MobileLayout />}>
 
-        {/* Auth */}
+        {/* Auth — public routes */}
         <Route path="/auth/callback"   element={<AuthCallback />} />
+        <Route path="/reset-password"  element={<ResetPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/onboarding"      element={<PublicRoute><OnboardingPage /></PublicRoute>} />
         <Route path="/login"           element={<PublicRoute><LoginPage /></PublicRoute>} />
         <Route path="/signup/customer" element={<PublicRoute><SignupCustomer /></PublicRoute>} />

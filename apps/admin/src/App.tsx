@@ -9,6 +9,8 @@ import PayoutsPage       from './pages/Payouts'
 import UsersPage         from './pages/Users'
 import LoginPage         from './pages/Login'
 import AuthCallback      from './pages/AuthCallback'
+import ForgotPassword    from './pages/ForgotPassword'
+import ResetPassword     from './pages/ResetPassword'
 
 // ── Admin-only guard ──────────────────────────────────────────────────────────
 
@@ -50,8 +52,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* Public */}
-        <Route path="/login"         element={<LoginPage />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/login"           element={<LoginPage />} />
+        <Route path="/auth/callback"   element={<AuthCallback />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password"  element={<ResetPassword />} />
 
         {/* Protected admin routes */}
         <Route element={<AdminGuard />}>
