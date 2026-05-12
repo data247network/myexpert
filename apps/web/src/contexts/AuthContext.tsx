@@ -25,39 +25,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data)
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      setProfile(data)
+    } catch {
+      // Network error or RLS rejection — profile stays null, loading still clears
+      setProfile(null)
+    }
   }
 
   useEffect(() => {
-    // Initial session — wait for profile before clearing loading
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) await fetchProfile(session.user.id)
-      setLoading(false)
-    })
-
-    // Auth state changes
+    // Use onAuthStateChange as the single source of truth.
+    // Supabase v2 fires INITIAL_SESSION immediately, replacing the need
+    // for a separate getSession() call.
+    // We always call setLoading(false) in a finally block so a failed
+    // fetchProfile never leaves the spinner spinning forever.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session)
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-          subscribeUser(session.user.id)
-        } else {
-          setProfile(null)
+      async (_event, newSession) => {
+        setSession(newSession)
+        setUser(newSession?.user ?? null)
+        try {
+          if (newSession?.user) {
+            await fetchProfile(newSession.user.id)
+            subscribeUser(newSession.user.id)
+          } else {
+            setProfile(null)
+          }
+        } finally {
+          setLoading(false)   // ← always fires, even if fetchProfile throws
         }
-        setLoading(false)
       }
     )
 
-    return () => subscription.unsubscribe()
+    // Safety net: if onAuthStateChange never fires (offline / ad blocker),
+    // clear the spinner after 5 s so users aren't stuck.
+    const safety = setTimeout(() => setLoading(false), 5000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(safety)
+    }
   }, [])
 
   const signOut = async () => {
