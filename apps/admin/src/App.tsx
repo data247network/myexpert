@@ -42,13 +42,9 @@ function AdminGuard() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.user) { setState('denied'); return }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single()
-
-      setState(profile?.role === 'admin' ? 'ok' : 'denied')
+      // Use SECURITY DEFINER RPC so RLS never blocks the role check
+      const { data: role } = await supabase.rpc('get_my_role', { user_id: session.user.id })
+      setState(role === 'admin' ? 'ok' : 'denied')
     }
     check()
 

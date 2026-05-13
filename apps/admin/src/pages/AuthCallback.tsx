@@ -47,14 +47,10 @@ export default function AuthCallback() {
         return
       }
 
-      // Verify admin role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single()
+      // Verify admin role via SECURITY DEFINER RPC (bypasses RLS)
+      const { data: role } = await supabase.rpc('get_my_role', { user_id: session.user.id })
 
-      if (profile?.role === 'admin') {
+      if (role === 'admin') {
         navigate('/overview', { replace: true })
       } else {
         setError('Access denied — this dashboard is for admin accounts only.')

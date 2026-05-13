@@ -21,14 +21,10 @@ export default function LoginPage() {
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password })
     if (err) { setError(err.message); setLoading(false); return }
 
-    // Verify admin role server-side before allowing in
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', data.user.id)
-      .single()
+    // Verify admin role via SECURITY DEFINER RPC (bypasses RLS timing issues)
+    const { data: role } = await supabase.rpc('get_my_role', { user_id: data.user.id })
 
-    if (profile?.role !== 'admin') {
+    if (role !== 'admin') {
       await supabase.auth.signOut()
       setError('Access denied — admin accounts only.')
       setLoading(false)
