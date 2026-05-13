@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@myexpert/shared'
 import { Eye, EyeOff } from 'lucide-react'
 
 export default function ResetPassword() {
+  const navigate   = useNavigate()
   const [password,  setPassword]  = useState('')
   const [confirm,   setConfirm]   = useState('')
   const [showPw,    setShowPw]    = useState(false)
@@ -21,45 +22,57 @@ export default function ResetPassword() {
     }
   }, [])
 
+  // After showing success for 1.5 s, go to /overview (admin is already signed in)
+  useEffect(() => {
+    if (!done) return
+    const t = setTimeout(() => navigate('/overview', { replace: true }), 1500)
+    return () => clearTimeout(t)
+  }, [done, navigate])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (password !== confirm) { setError('Passwords do not match.'); return }
     if (password.length < 8)  { setError('Minimum 8 characters required.'); return }
     setLoading(true); setError('')
-    const { error: err } = await supabase.auth.updateUser({ password })
-    setLoading(false)
-    if (err) { setError(err.message); return }
-    setDone(true)
+    try {
+      const { error: err } = await supabase.auth.updateUser({ password })
+      if (err) { setError(err.message); return }
+      setDone(true)
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
+  // ── Link expired ─────────────────────────────────────────────────────────────
   if (hashError) return (
     <div className="min-h-dvh flex items-center justify-center p-4">
       <div className="text-center max-w-sm">
         <p className="text-4xl mb-3">⏱️</p>
         <p className="font-bold text-gray-900 text-lg mb-1">Link expired</p>
         <p className="text-sm text-gray-500 mb-5">{hashError}</p>
-        <Link to="/forgot-password"
+        <button onClick={() => navigate('/forgot-password')}
           className="inline-block px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl text-sm hover:bg-purple-700">
           Request new link
-        </Link>
+        </button>
       </div>
     </div>
   )
 
+  // ── Success ───────────────────────────────────────────────────────────────────
   if (done) return (
     <div className="min-h-dvh flex items-center justify-center p-4">
       <div className="text-center max-w-sm">
         <p className="text-4xl mb-3">✅</p>
         <p className="font-bold text-gray-900 text-lg mb-1">Password updated!</p>
-        <p className="text-sm text-gray-500 mb-5">You can now sign in with your new password.</p>
-        <Link to="/login"
-          className="inline-block px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl text-sm hover:bg-purple-700">
-          Sign in now →
-        </Link>
+        <p className="text-sm text-gray-500 mb-4">Taking you to the dashboard…</p>
+        <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto" />
       </div>
     </div>
   )
 
+  // ── Form ──────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-dvh flex items-center justify-center bg-gray-50 p-4">
       <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg">

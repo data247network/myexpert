@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { useEffect } from 'react'
 
 // Pages — Landing & Auth
 import LandingPage      from './pages/landing/LandingPage'
@@ -33,6 +34,26 @@ import VerificationFlow from './pages/worker/VerificationFlow'
 
 // Shared UI
 import { Spinner } from './components/ui/Spinner'
+
+// ── Hash redirect safety net ─────────────────────────────────────────────────
+// Supabase can redirect to the Site URL root (/) with token/error in the hash.
+// This bounces those hashes to /auth/callback which knows how to handle them.
+function HashRedirect() {
+  const navigate  = useNavigate()
+  const location  = useLocation()
+  useEffect(() => {
+    const hash = window.location.hash.substring(1)
+    if (!hash) return
+    const p = new URLSearchParams(hash)
+    const hasToken = p.get('access_token') || p.get('error') || p.get('type')
+    const onAuthPage = location.pathname.startsWith('/auth/') ||
+                       location.pathname === '/reset-password'
+    if (hasToken && !onAuthPage) {
+      navigate(`/auth/callback${window.location.hash}`, { replace: true })
+    }
+  }, [navigate, location.pathname])
+  return null
+}
 
 // ── Layouts ─────────────────────────────────────────────────────────────────
 
@@ -71,6 +92,8 @@ function PublicRoute({ children }: { children: JSX.Element }) {
 
 function AppRoutes() {
   return (
+    <>
+    <HashRedirect />
     <Routes>
       {/* ── Full-width (no mobile shell) ──── */}
       <Route path="/" element={<LandingPage />} />
@@ -112,6 +135,7 @@ function AppRoutes() {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
 

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '@myexpert/shared'
 import AdminLayout       from './components/layout/AdminLayout'
@@ -11,6 +11,26 @@ import LoginPage         from './pages/Login'
 import AuthCallback      from './pages/AuthCallback'
 import ForgotPassword    from './pages/ForgotPassword'
 import ResetPassword     from './pages/ResetPassword'
+
+// ── Hash redirect safety net ──────────────────────────────────────────────────
+// If Supabase redirects to the admin root with a token/error hash,
+// forward it to /auth/callback which handles all hash cases correctly.
+function HashRedirect() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  useEffect(() => {
+    const hash = window.location.hash.substring(1)
+    if (!hash) return
+    const p = new URLSearchParams(hash)
+    const hasToken = p.get('access_token') || p.get('error') || p.get('type')
+    const onAuthPage = location.pathname.startsWith('/auth/') ||
+                       location.pathname === '/reset-password'
+    if (hasToken && !onAuthPage) {
+      navigate(`/auth/callback${window.location.hash}`, { replace: true })
+    }
+  }, [navigate, location.pathname])
+  return null
+}
 
 // ── Admin-only guard ──────────────────────────────────────────────────────────
 
@@ -50,6 +70,7 @@ function AdminGuard() {
 export default function App() {
   return (
     <BrowserRouter>
+      <HashRedirect />
       <Routes>
         {/* Public */}
         <Route path="/login"           element={<LoginPage />} />
