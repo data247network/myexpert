@@ -1,12 +1,13 @@
 /**
  * ResetPassword — landed here from a password-reset email link.
  * Supabase sets a temporary session from the URL hash automatically.
- * We just call updateUser({ password }) to commit the new password.
+ * We call updateUser({ password }) then redirect straight to the dashboard.
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@myexpert/shared'
 import { Eye, EyeOff } from 'lucide-react'
+import { redirectByRole } from '@/lib/auth'
 
 export default function ResetPassword() {
   const navigate  = useNavigate()
@@ -19,7 +20,6 @@ export default function ResetPassword() {
   const [hashError, setHashError] = useState('')
 
   useEffect(() => {
-    // Check for error in URL hash (e.g. expired link)
     const hash = window.location.hash.substring(1)
     if (hash.includes('error=')) {
       const params = new URLSearchParams(hash)
@@ -28,15 +28,27 @@ export default function ResetPassword() {
     }
   }, [])
 
+  // After showing success for 1.5 s, go straight to the right dashboard
+  useEffect(() => {
+    if (!done) return
+    const t = setTimeout(() => redirectByRole(navigate), 1500)
+    return () => clearTimeout(t)
+  }, [done, navigate])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (password !== confirm) { setError('Passwords do not match.'); return }
     if (password.length < 8)  { setError('Password must be at least 8 characters.'); return }
     setLoading(true); setError('')
-    const { error: err } = await supabase.auth.updateUser({ password })
-    setLoading(false)
-    if (err) { setError(err.message); return }
-    setDone(true)
+    try {
+      const { error: err } = await supabase.auth.updateUser({ password })
+      if (err) { setError(err.message); return }
+      setDone(true)
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // ── Link expired ─────────────────────────────────────────────────────────────
@@ -55,13 +67,13 @@ export default function ResetPassword() {
   // ── Success ───────────────────────────────────────────────────────────────────
   if (done) return (
     <div className="flex flex-col h-dvh px-6 items-center justify-center gap-4 text-center">
-      <div className="text-5xl mb-2">✅</div>
+      <div className="relative">
+        <div className="text-6xl mb-2">✅</div>
+        <div className="absolute -top-1 -right-1 w-5 h-5 bg-brand-600 rounded-full animate-ping opacity-60" />
+      </div>
       <h2 className="text-xl font-bold text-ink">Password updated!</h2>
-      <p className="text-ink-secondary text-sm">You can now sign in with your new password.</p>
-      <button onClick={() => navigate('/login', { replace: true })}
-        className="mt-2 px-6 py-3 bg-brand-600 text-white font-semibold rounded-2xl text-sm">
-        Sign in now →
-      </button>
+      <p className="text-ink-secondary text-sm">Taking you to your dashboard…</p>
+      <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mt-2" />
     </div>
   )
 
@@ -98,9 +110,9 @@ export default function ResetPassword() {
             className="input-field" />
         </div>
 
-        {/* Strength hint */}
+        {/* Strength bar */}
         {password.length > 0 && (
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
             {[8, 12, 16].map(len => (
               <div key={len}
                 className={`flex-1 h-1.5 rounded-full transition-colors ${
