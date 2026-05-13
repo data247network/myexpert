@@ -24,16 +24,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (_userId: string) => {
     try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-      setProfile(data)
+      // Use SECURITY DEFINER RPC — bypasses RLS, no post-signIn timing race
+      const { data } = await supabase.rpc('get_my_profile')
+      // rpc returns an array for SETOF functions; take the first row
+      setProfile(Array.isArray(data) ? (data[0] ?? null) : (data ?? null))
     } catch {
-      // Network error or RLS rejection — profile stays null, loading still clears
+      // Network error — profile stays null, loading still clears via finally
       setProfile(null)
     }
   }

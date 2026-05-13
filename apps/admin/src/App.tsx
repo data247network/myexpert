@@ -38,18 +38,28 @@ function AdminGuard() {
   const [state, setState] = useState<'loading' | 'ok' | 'denied'>('loading')
 
   useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) { setState('denied'); return }
+    // Safety net: if nothing resolves in 6 s, redirect to login
+    const safety = setTimeout(() => setState(s => s === 'loading' ? 'denied' : s), 6000)
 
-      // Use SECURITY DEFINER RPC so RLS never blocks the role check
-      const { data: role } = await supabase.rpc('get_my_role', { user_id: session.user.id })
-      setState(role === 'admin' ? 'ok' : 'denied')
+    // onAuthStateChange fires INITIAL_SESSION immediately once the client
+    // has read the persisted session from localStorage — more reliable than
+    // calling getSession() on a fresh page load (which can race the init).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!session?.user) { setState('denied'); return }
+        try {
+          const { data: role } = await supabase.rpc('get_my_role', { user_id: session.user.id })
+          setState(role === 'admin' ? 'ok' : 'denied')
+        } catch {
+          setState('denied')
+        }
+      }
+    )
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(safety)
     }
-    check()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => check())
-    return () => subscription.unsubscribe()
   }, [])
 
   if (state === 'loading') return (
