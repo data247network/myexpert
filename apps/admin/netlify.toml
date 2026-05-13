@@ -1,14 +1,15 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Admin site netlify.toml
 # Netlify site: myexpert-ops → admin.myexpert.com.ng
-# Base directory on Netlify dashboard MUST be set to: apps/admin
+# Base directory on Netlify dashboard MUST be: apps/admin
+# All paths below are relative to apps/admin (the base directory)
 # ─────────────────────────────────────────────────────────────────────────────
 
 [build]
-  # cd up to the monorepo root so workspace packages are available,
-  # then build only the admin workspace
-  command = "cd ../../ && npm install && npm run build --workspace=apps/admin"
-  # publish is relative to Base directory (apps/admin), so this = apps/admin/dist
+  # npm --prefix ../.. runs install/build from the monorepo root (../../ from apps/admin)
+  # This makes workspace packages available before the admin vite build runs
+  command = "npm --prefix ../.. install && npm --prefix ../.. run build:admin"
+  # publish is relative to the base directory (apps/admin), so this = apps/admin/dist
   publish = "dist"
 
 [build.environment]
