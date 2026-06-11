@@ -465,9 +465,20 @@ export default function PostJob() {
     setLoading(true)
     setError('')
 
+    // Resolve category_id — try from map first, fallback to direct query
+    let resolvedCategoryId = draft.categoryId || null
+    if (draft.categoryName && !resolvedCategoryId) {
+      const { data: catData } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', draft.categoryName)
+        .single()
+      resolvedCategoryId = catData?.id ?? null
+    }
+
     const { error: insertError } = await supabase.from('jobs').insert({
       customer_id:      user.id,
-      category_id:      draft.categoryId || null,
+      category_id:      resolvedCategoryId,
       title:            draft.title.trim(),
       description:      draft.description.trim() || null,
       urgency:          draft.urgency,

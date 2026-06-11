@@ -3,6 +3,7 @@ import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@myexpert/shared'
 import type { Profile, UserRole } from '@myexpert/shared'
 import { subscribeUser, unsubscribeUser } from '@/lib/notifications'
+import { useNavigate } from 'react-router-dom'
 
 interface AuthContextType {
   user:    User | null
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   const fetchProfile = async (_userId: string) => {
     try {
@@ -70,9 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = async () => {
-    await unsubscribeUser()
-    await supabase.auth.signOut()
+    try { await unsubscribeUser() } catch { /* ignore */ }
     setProfile(null)
+    setUser(null)
+    setSession(null)
+    await supabase.auth.signOut()
+    navigate('/onboarding', { replace: true })
   }
 
   return (

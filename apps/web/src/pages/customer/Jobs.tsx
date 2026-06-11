@@ -60,16 +60,20 @@ export default function CustomerJobs() {
   const { user } = useAuth()
   const [jobs,    setJobs]    = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState('')
 
   useEffect(() => {
     if (!user) return
+    setLoading(true)
+    setError('')
     supabase
       .from('jobs')
       .select('*')
       .eq('customer_id', user.id)
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) setJobs(data as Job[])
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message)
+        else if (data) setJobs(data as Job[])
         setLoading(false)
       })
   }, [user])
@@ -86,6 +90,12 @@ export default function CustomerJobs() {
           + Post job
         </Link>
       </div>
+
+      {error && (
+        <div className="mx-4 mb-3 bg-red-50 rounded-xl px-4 py-3">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center pt-16">

@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_ONESIGNAL_APP_ID?: string
   readonly VITE_APP_NAME: string
   readonly VITE_APP_ENV: string
+  readonly VITE_PAYSTACK_PUBLIC_KEY: string
 }
 
 interface ImportMeta {
