@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 jobs:
-  deploy:
+  deploy-web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,13 +28,45 @@ jobs:
           VITE_APP_NAME: MyExpert
           VITE_APP_ENV: production
 
-      - name: Deploy to Netlify
+      - name: Deploy web to Netlify
         uses: nwtgck/actions-netlify@v3.0
         with:
           publish-dir: apps/web/dist
           production-branch: main
           production-deploy: true
-          deploy-message: "Deploy from GitHub Actions — ${{ github.sha }}"
+          deploy-message: "web — ${{ github.sha }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+  deploy-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build admin app
+        run: npm run build:admin
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_APP_NAME: "MyExpert Ops"
+          VITE_APP_ENV: production
+
+      - name: Deploy admin to Netlify
+        uses: nwtgck/actions-netlify@v3.0
+        with:
+          publish-dir: apps/admin/dist
+          production-branch: main
+          production-deploy: true
+          deploy-message: "admin — ${{ github.sha }}"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_ADMIN_SITE_ID }}
