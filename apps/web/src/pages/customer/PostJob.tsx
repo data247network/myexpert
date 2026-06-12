@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase, CATEGORIES } from '@myexpert/shared'
 import { useAuth } from '@/contexts/AuthContext'
-import { ArrowLeft, ChevronRight, Zap, Clock, MapPin, Tag, CheckCircle } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Zap, Clock, MapPin, Tag, CheckCircle, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface CategoryRow { id: string; name: string }
+
+interface Attachment {
+  file: File
+  previewUrl: string
+}
 
 interface Draft {
   categoryName: string
@@ -105,11 +110,14 @@ function Step1({ draft, set, next }: {
 
 // ── Step 2 — Description + urgency ───────────────────────────────────────────
 
-function Step2({ draft, set, next, back }: {
+function Step2({ draft, set, next, back, attachments, onAddFiles, onRemoveFile }: {
   draft: Draft
   set: (k: keyof Draft, v: string) => void
   next: () => void
   back: () => void
+  attachments: Attachment[]
+  onAddFiles: (files: FileList | null) => void
+  onRemoveFile: (index: number) => void
 }) {
   return (
     <div className="flex flex-col flex-1 px-6">
@@ -130,6 +138,53 @@ function Step2({ draft, set, next, back }: {
         <p className="text-xs text-ink-tertiary mt-1 text-right">
           {draft.description.length}/500
         </p>
+      </div>
+
+      {/* Photo / document upload */}
+      <div className="mb-5">
+        <label className="text-sm font-medium text-ink mb-1.5 block flex items-center gap-1.5">
+          <Paperclip size={14} /> Photos or documents <span className="text-ink-tertiary font-normal">(optional)</span>
+        </label>
+        <p className="text-xs text-ink-tertiary mb-2">
+          Add photos of the issue or a document (e.g. a quote, design, or spec sheet). Up to 5 files, 10MB each.
+        </p>
+
+        {attachments.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {attachments.map((att, i) => (
+              <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-surface-secondary border border-surface-tertiary">
+                {att.file.type.startsWith('image/') ? (
+                  <img src={att.previewUrl} alt={att.file.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-2">
+                    <FileText size={22} className="text-ink-tertiary" />
+                    <span className="text-[10px] text-ink-tertiary text-center truncate w-full px-1">{att.file.name}</span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onRemoveFile(i)}
+                  className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
+                  <X size={12} className="text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {attachments.length < 5 && (
+          <label className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-surface-tertiary text-ink-secondary text-sm font-medium cursor-pointer hover:bg-surface-secondary transition-colors">
+            <ImageIcon size={16} />
+            Add photo or document
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+              multiple
+              className="hidden"
+              onChange={e => onAddFiles(e.target.files)}
+            />
+          </label>
+        )}
       </div>
 
       {/* Urgency */}
@@ -312,12 +367,13 @@ function Step3({ draft, set, setCoords, next, back }: {
 
 // ── Step 4 — Review + post ────────────────────────────────────────────────────
 
-function Step4({ draft, set, onPost, back, loading }: {
+function Step4({ draft, set, onPost, back, loading, attachments }: {
   draft:   Draft
   set:     (k: keyof Draft, v: string) => void
   onPost:  () => void
   back:    () => void
   loading: boolean
+  attachments: Attachment[]
 }) {
   const catIcon = CATEGORIES.find(c => c.name === draft.categoryName)?.icon ?? '🔧'
 
@@ -363,6 +419,12 @@ function Step4({ draft, set, onPost, back, loading }: {
             <div className="flex items-center gap-2 text-sm text-ink-secondary">
               <span className="font-semibold text-ink-tertiary">₦</span>
               Budget: ₦{Number(draft.budget).toLocaleString()}
+            </div>
+          )}
+          {attachments.length > 0 && (
+            <div className="flex items-center gap-2 text-sm text-ink-secondary">
+              <Paperclip size={14} className="text-ink-tertiary" />
+              {attachments.length} file{attachments.length > 1 ? 's' : ''} attached
             </div>
           )}
         </div>
@@ -434,6 +496,7 @@ export default function PostJob() {
   const [error,   setError]   = useState('')
   const [success, setSuccess] = useState(false)
   const [catMap,  setCatMap]  = useState<Record<string, string>>({})
+  const [attachments, setAttachments] = useState<Attachment[]>([])
 
   // Fetch category ID map (name → uuid) once
   useEffect(() => {
@@ -460,6 +523,50 @@ export default function PostJob() {
     setDraft(d => ({ ...d, locationLat: lat, locationLng: lng, location: address }))
   }
 
+  const MAX_FILES = 5
+  const MAX_SIZE  = 10 * 1024 * 1024 // 10MB
+
+  const onAddFiles = (files: FileList | null) => {
+    if (!files) return
+    setError('')
+    const incoming = Array.from(files)
+    const valid: Attachment[] = []
+
+    for (const file of incoming) {
+      if (attachments.length + valid.length >= MAX_FILES) {
+        setError(`You can attach up to ${MAX_FILES} files.`)
+        break
+      }
+      if (file.size > MAX_SIZE) {
+        setError(`"${file.name}" is too large. Max file size is 10MB.`)
+        continue
+      }
+      const okType = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'].includes(file.type)
+      if (!okType) {
+        setError(`"${file.name}" is not a supported file type. Use JPG, PNG, WEBP, HEIC, or PDF.`)
+        continue
+      }
+      valid.push({ file, previewUrl: URL.createObjectURL(file) })
+    }
+
+    if (valid.length) setAttachments(prev => [...prev, ...valid])
+  }
+
+  const onRemoveFile = (index: number) => {
+    setAttachments(prev => {
+      const copy = [...prev]
+      const [removed] = copy.splice(index, 1)
+      if (removed) URL.revokeObjectURL(removed.previewUrl)
+      return copy
+    })
+  }
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => attachments.forEach(a => URL.revokeObjectURL(a.previewUrl))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const post = async () => {
     if (!user) return
     setLoading(true)
@@ -468,36 +575,93 @@ export default function PostJob() {
     // Resolve category_id — try from map first, fallback to direct query
     let resolvedCategoryId = draft.categoryId || null
     if (draft.categoryName && !resolvedCategoryId) {
-      const { data: catData } = await supabase
+      const { data: catData, error: catErr } = await supabase
         .from('categories')
         .select('id')
         .eq('name', draft.categoryName)
         .single()
+      if (catErr) {
+        setLoading(false)
+        setError(`Could not find category "${draft.categoryName}". Please go back and re-select it.`)
+        return
+      }
       resolvedCategoryId = catData?.id ?? null
     }
 
-    const { error: insertError } = await supabase.from('jobs').insert({
-      customer_id:      user.id,
-      category_id:      resolvedCategoryId,
-      title:            draft.title.trim(),
-      description:      draft.description.trim() || null,
-      urgency:          draft.urgency,
-      scheduled_for:    draft.scheduledFor || null,
-      customer_quote:   draft.budget ? Number(draft.budget) : null,
-      location_address: draft.location.trim(),
-      location_lat:     draft.locationLat,
-      location_lng:     draft.locationLng,
-      promo_code:       draft.promoCode.trim() || null,
-      status:           'open',
-    })
-
-    setLoading(false)
-
-    if (insertError) {
-      setError(insertError.message)
+    if (!draft.title.trim()) {
+      setLoading(false)
+      setError('Please enter a job title.')
+      return
+    }
+    if (!draft.location.trim()) {
+      setLoading(false)
+      setError('Please enter a job location.')
       return
     }
 
+    const { data: insertedJob, error: insertError } = await supabase
+      .from('jobs')
+      .insert({
+        customer_id:      user.id,
+        category_id:      resolvedCategoryId,
+        title:            draft.title.trim(),
+        description:      draft.description.trim() || null,
+        urgency:          draft.urgency,
+        scheduled_for:    draft.scheduledFor ? new Date(draft.scheduledFor).toISOString() : null,
+        customer_quote:   draft.budget ? Number(draft.budget) : null,
+        location_address: draft.location.trim(),
+        location_lat:     draft.locationLat,
+        location_lng:     draft.locationLng,
+        promo_code:       draft.promoCode.trim() || null,
+        status:           'open',
+      })
+      .select('id')
+      .single()
+
+    if (insertError) {
+      setLoading(false)
+      // Surface a clear, actionable message for common failure modes
+      if (insertError.code === '23503') {
+        setError('There was a problem with the selected category. Please go back and re-select it, then try again.')
+      } else if (insertError.code === '42501' || insertError.message.toLowerCase().includes('row-level security')) {
+        setError('You don\'t have permission to post this job. Please sign out and sign back in, then try again.')
+      } else if (insertError.code === '23502') {
+        setError('Please fill in all required fields (title and location).')
+      } else {
+        setError(insertError.message || 'Something went wrong while posting your job. Please try again.')
+      }
+      return
+    }
+
+    // Upload attachments (if any) — best-effort, doesn't block success
+    if (insertedJob?.id && attachments.length > 0) {
+      for (const att of attachments) {
+        try {
+          const ext = att.file.name.split('.').pop() || 'jpg'
+          const path = `${user.id}/${insertedJob.id}/${crypto.randomUUID()}.${ext}`
+
+          const { error: uploadErr } = await supabase.storage
+            .from('job-photos')
+            .upload(path, att.file, { contentType: att.file.type, upsert: false })
+
+          if (uploadErr) continue // skip failed uploads silently — job is already posted
+
+          const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path)
+
+          await supabase.from('job_photos').insert({
+            job_id:      insertedJob.id,
+            uploaded_by: user.id,
+            url:         urlData.publicUrl,
+            photo_type:  'job_post',
+          })
+        } catch {
+          // Attachment upload failures shouldn't block the job posting flow
+          continue
+        }
+      }
+    }
+
+    setLoading(false)
     setSuccess(true)
   }
 
@@ -525,9 +689,9 @@ export default function PostJob() {
             <p className="mx-6 mb-3 text-sm text-danger bg-red-50 rounded-xl px-4 py-2">{error}</p>
           )}
           {step === 1 && <Step1 draft={draft} set={set} next={() => setStep(2)} />}
-          {step === 2 && <Step2 draft={draft} set={set} next={() => setStep(3)} back={() => setStep(1)} />}
+          {step === 2 && <Step2 draft={draft} set={set} next={() => setStep(3)} back={() => setStep(1)} attachments={attachments} onAddFiles={onAddFiles} onRemoveFile={onRemoveFile} />}
           {step === 3 && <Step3 draft={draft} set={set} setCoords={setCoords} next={() => setStep(4)} back={() => setStep(2)} />}
-          {step === 4 && <Step4 draft={draft} set={set} onPost={post} back={() => setStep(3)} loading={loading} />}
+          {step === 4 && <Step4 draft={draft} set={set} onPost={post} back={() => setStep(3)} loading={loading} attachments={attachments} />}
         </div>
       )}
     </div>
