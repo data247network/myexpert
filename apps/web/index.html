@@ -41,6 +41,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Unregister any stray service workers from previous deploys.
+      // OneSignal is not currently configured (no VITE_ONESIGNAL_APP_ID),
+      // so any registered SW is leftover and can serve stale cached app
+      // shells, causing logged-in users to run old/broken JS bundles.
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(reg => reg.unregister())
+        })
+      }
+      if ('caches' in window) {
+        caches.keys().then(keys => keys.forEach(key => caches.delete(key)))
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

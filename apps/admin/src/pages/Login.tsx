@@ -18,21 +18,38 @@ export default function LoginPage() {
   const handlePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
-    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password })
-    if (err) { setError(err.message); setLoading(false); return }
 
-    // Verify admin role via SECURITY DEFINER RPC (bypasses RLS timing issues)
-    const { data: role } = await supabase.rpc('get_my_role', { user_id: data.user.id })
+    const withTimeout = <T,>(p: PromiseLike<T>, ms: number) =>
+      new Promise<T>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error('timeout')), ms)
+        Promise.resolve(p).then(v => { clearTimeout(t); resolve(v) }, e => { clearTimeout(t); reject(e) })
+      })
 
-    if (role !== 'admin') {
-      await supabase.auth.signOut()
-      setError('Access denied — admin accounts only.')
+    try {
+      const { data, error: err } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }), 10000,
+      )
+      if (err) { setError(err.message); setLoading(false); return }
+
+      // Verify admin role via SECURITY DEFINER RPC (bypasses RLS timing issues)
+      const { data: role } = await withTimeout(
+        supabase.rpc('get_my_role', { user_id: data.user.id }), 8000,
+      )
+
+      if (role !== 'admin') {
+        await supabase.auth.signOut()
+        setError('Access denied — admin accounts only.')
+        setLoading(false)
+        return
+      }
       setLoading(false)
-      return
+      // Hard navigate so AdminGuard re-evaluates with the fresh session
+      window.location.replace('/overview')
+    } catch {
+      // Sign-in or role check hung — a fresh reload re-fetches the latest
+      // bundle and clears whatever caused the stall (e.g. stale cache).
+      window.location.reload()
     }
-    setLoading(false)
-    // Hard navigate so AdminGuard re-evaluates with the fresh session
-    window.location.replace('/overview')
   }
 
   // ── Magic link ──────────────────────────────────────────────────────────────
