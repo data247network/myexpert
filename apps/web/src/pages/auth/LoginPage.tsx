@@ -15,11 +15,20 @@ export default function LoginPage() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [magicSent, setMagicSent] = useState(false)
+  const [stuck,    setStuck]    = useState(false)
+
+  // Show a manual recovery link if sign-in takes unusually long
+  const startStuckTimer = () => {
+    setStuck(false)
+    const t = setTimeout(() => setStuck(true), 6000)
+    return () => clearTimeout(t)
+  }
 
   // ── Password sign-in ────────────────────────────────────────────────────────
   const handlePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
+    const cancelStuckTimer = startStuckTimer()
     try {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password })
       if (err) { setError(err.message); return }
@@ -29,6 +38,8 @@ export default function LoginPage() {
       setError('Sign-in failed. Please check your connection and try again.')
     } finally {
       setLoading(false)
+      cancelStuckTimer()
+      setStuck(false)
     }
   }
 
@@ -124,6 +135,15 @@ export default function LoginPage() {
           <button type="submit" disabled={loading} className="btn-primary mt-1">
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
+
+          {stuck && (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="text-sm text-ink-tertiary underline mt-1 text-center">
+              Taking longer than usual — tap to refresh and try again
+            </button>
+          )}
         </form>
       )}
 

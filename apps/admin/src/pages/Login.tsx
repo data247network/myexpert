@@ -13,11 +13,14 @@ export default function LoginPage() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [magicSent, setMagicSent] = useState(false)
+  const [stuck,    setStuck]    = useState(false)
 
   // ── Password sign-in ────────────────────────────────────────────────────────
   const handlePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
+    setStuck(false)
+    const stuckTimer = setTimeout(() => setStuck(true), 6000)
 
     const withTimeout = <T,>(p: PromiseLike<T>, ms: number) =>
       new Promise<T>((resolve, reject) => {
@@ -49,6 +52,8 @@ export default function LoginPage() {
       // Sign-in or role check hung — a fresh reload re-fetches the latest
       // bundle and clears whatever caused the stall (e.g. stale cache).
       window.location.reload()
+    } finally {
+      clearTimeout(stuckTimer)
     }
   }
 
@@ -151,6 +156,15 @@ export default function LoginPage() {
               className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 mt-1">
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
+
+            {stuck && (
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="text-sm text-gray-400 underline mt-1 text-center">
+                Taking longer than usual — tap to refresh and try again
+              </button>
+            )}
           </form>
         )}
 
